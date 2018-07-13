@@ -1,4 +1,4 @@
-# [重庆客观预报](http://www.tanyiyi.com)
+# [重庆客观预报](http://www.tanyiyi.cn)
 
 > A Vue.js project
 
