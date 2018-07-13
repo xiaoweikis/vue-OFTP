@@ -1,6 +1,10 @@
-# oftp
+# [重庆客观预报](http://www.tanyiyi.com)
 
 > A Vue.js project
+
+## 生态圈
+
+> vueX \~ iview \~ bootstrap \~ webpack
 
 ## Build Setup
 
