@@ -14,8 +14,6 @@ import utils from './lib/utils'
 Vue.use(VueAxios,axios);
 Vue.use(utils);
 
-Vue.prototype.$vm = Vue;
-
 Vue.config.productionTip = false;
 
 
@@ -27,4 +25,4 @@ new Vue({
   store,
   components: { App },
   template: '<App/>'
-})
+});
