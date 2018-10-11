@@ -44,7 +44,7 @@
       class-name="vertical-center-modal"
       width="1000"
     >
-      <div class="testDetails">
+    <div class="testDetails">
         <div class="testDetails_item">
           <!--基本信息-->
           <span class="spanTitle">基本信息</span>
@@ -59,12 +59,12 @@
           <!--样本信息-->
           <span class="spanTitle">样本信息</span>
           <div class="testDetails_item_content">
-            <strong class="r">日期&nbsp:</strong><span>&nbsp{{getYears}}</span>
+            <strong class="r">样本选择时间&nbsp:</strong><span>&nbsp{{getYears}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
             <strong class="r">站点&nbsp:</strong><span>&nbsp{{getStation}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
-            <strong class="r">模式&nbsp:</strong><span>&nbsp{{typeNWP}}</span>
-            <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
+            <!-- <strong class="r">模式&nbsp:</strong><span>&nbsp{{typeNWP}}</span>
+            <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/> -->
             <strong class="r">预报量&nbsp:</strong><span>&nbsp{{getForecastElement}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
             <strong class="r"> 起报时间&nbsp:</strong><span>&nbsp{{details[0].forecastHour}}</span>
@@ -107,9 +107,9 @@
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
             <strong>实验方案&nbsp:</strong><span>&nbsp{{details[0].forecastSchemeCaption}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
-            <strong>建模样本&nbsp:</strong><span>&nbsp{{forecasTime}}</span>
+            <strong>建模样本&nbsp:</strong><span>&nbsp{{getjmS}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
-            <strong>实验样本&nbsp:</strong><span>&nbsp{{trainTime}}</span>
+            <strong>实验样本&nbsp:</strong><span>&nbsp{{getjmE}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
           </div>
           <!--实验备注及核心代码-->
@@ -119,7 +119,7 @@
             <Input type="textarea" :readonly="true" :rows="20" :value="uniCodePython"/>
           </div>
         </div>
-      </div>
+      </div> -->
     </Modal>
   </div>
 </template>
@@ -255,7 +255,7 @@
                       $.post('http://101.200.12.178:8090/OFTPService/services/Project/getProject', {para: JSON.stringify({id: id})})
                         .done(data => {
                           this.details = data;
-                          console.log(JSON.parse(this.details[0].testResult).cols)
+                        
                         })
                     }
                   }
@@ -298,8 +298,8 @@
     computed: {
       //获取实验人员列表
       testUserName(){
-        return this.$store.state.firstCache.testUserName;
-      },
+        return  this.$store.state.firstCache.testUserName;
+        },
       //获取实验要素列表
       listForecastElement(){
         return this.$store.state.firstCache.listForecastElement;
@@ -327,7 +327,7 @@
       },
       //计算模式
       typeNWP(){
-        return JSON.parse(this.details[0].typeNWP)[0];
+        return JSON.parse(this.details[0].typeNWP)[0];  
       },
       //计算预报量
       getForecastElement(){
@@ -377,8 +377,19 @@
       uniCodePython(){
         let code = this.details[0].sourceCode;
         return this.decodeUnicode(code);
+      },
+      //获取建模日期
+      getjmS(){
+         let jm = this.$store.state.firstCache.jmstartTime +'至'+this.$store.state.firstCache.jmendTime;
+        
+        return jm 
+      },
+      //获取建模日期
+      getjmE(){
+        
+        let sy = this.$store.state.firstCache.syStartTime +'至'+this.$store.state.firstCache.syEndTime;
+        return sy;
       }
-
     },
     created(){
       //接口获取实验目录

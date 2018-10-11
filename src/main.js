@@ -9,10 +9,15 @@ import 'iview/dist/styles/iview.css'
 import axios from 'axios';
 import VueAxios from 'vue-axios'
 
+import iview from 'iview'
+
 import utils from './lib/utils'
 
+Vue.use(iview)
 Vue.use(VueAxios,axios);
 Vue.use(utils);
+
+Vue.prototype.$host = 'http://101.200.12.178:8090/OFTPServiceV2/services/';
 
 Vue.config.productionTip = false;
 

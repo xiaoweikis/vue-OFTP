@@ -35,7 +35,7 @@
   a,img{border:0;}
   body{font:12px/180% Arial, Helvetica, sans-serif, "新宋体";}
   /* content */
-  #content{position:relative;width:100%;;margin:0 auto;overflow: hidden;height: calc(100% - 80px)}
+  #content{position:relative;width:100%;;margin:0 auto;height: calc(100% - 80px)}
   #menu{float:left;width:100%;list-style:none;line-height:33px;background:url('../assets/menu_bg11.gif') no-repeat top left;border-top:1px solid #000;border-bottom:1px solid #000;margin:0;padding:0;}
   #menu li{float:left;border-left:1px solid #000;}
   #menu li a{float:left;font-size:1.2em;color:#fff;border-left:1px solid #ccc;text-decoration:none;background:url('../assets/menu_bg11.gif') no-repeat top left;}
@@ -48,6 +48,7 @@
     height: calc(100% - 35px);
     margin-top: 35px;
     overflow: auto;
+    min-height: 828px;
   }
   #menu .is-active {
     background:url('../assets/menu_bg_active1.gif') no-repeat top left

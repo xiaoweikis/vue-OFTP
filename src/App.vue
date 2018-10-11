@@ -9,12 +9,37 @@
     <Modal
       v-model="isShow"
       title="样本构建表"
-      width="600px"
+      width="800px"
       @on-ok="closeModal"
       @on-cancel="closeModal"
       :closable="false"
     >
-      <Table border :columns="columns3" :data="this.modalData" ></Table>
+      <!-- <Table  :columns="columns3" :data="this.modalData" ></Table> -->
+     <div>
+       <p 
+      v-for="item,index of modalData"
+      :key="index"
+      v-show="index <= (modalData.length - 2)"
+      >
+        <span 
+        style="display: inline-block;width:90px;font-weight:bold"
+        >
+          {{item.name}}
+        </span>
+        <span>
+          {{item.information}}
+        </span>
+      </p>
+     </div>
+       <div class="tableBox"  v-if="table1Data.length" >
+          <h4 style="text-align:center;font-weight:bold">观测因子列表</h4>
+           <Table stripe border :columns="columns1" :data="table1Data"></Table>
+        </div>
+        <div class="tableBox"  v-if="table2Data.length" >
+          <h4 style="text-align:center;font-weight:bold">模式因子列表</h4>
+           <Table stripe border :columns="columns2"  :data="table2Data"></Table>
+        </div>
+      
     </Modal>
   </div>
 </template>
@@ -46,7 +71,74 @@ export default {
           key: 'information'
         }
       ],//样本构建表
-      data3: []//样本构建表
+      data3: [],
+       columns1: [
+        {
+          title: "序号",
+          type: "index",
+          width: 90,
+          align: "center"
+        },
+        {
+          title: "因子",
+          align: "center",
+          key: "factor"
+        },
+        {
+          title: "层次",
+          align: "center",
+          key: "level"
+        },
+        {
+          title: "日期差",
+          align: "center",
+          key: "datePoor"
+        },
+        {
+          title: "时次",
+          align: "center",
+          key: "whenTime"
+        }
+      ], //实况因子
+      columns2: [
+        {
+          title: "序号",
+          type: "index",
+          width: 90,
+          align: "center"
+        },
+        {
+          title: "因子",
+          align: "center",
+          key: "factor"
+        },
+        {
+          title: "模式",
+          align: "center",
+          key: "type"
+        },
+        {
+          title: "层次",
+          align: "center",
+          key: "level"
+        },
+        {
+          title: "日期差",
+          align: "center",
+          key: "datePoor"
+        },
+        {
+          title: "起报时间",
+          align: "center",
+          key: "newspaperTime"
+        },
+        {
+          title: "时效",
+          align: "center",
+          key: "jetLag"
+        }
+      ], //模式因子//样本构建表
+
     }
   },
   methods:{
@@ -56,7 +148,7 @@ export default {
     }
   },
   computed:{
-    //获取模块狂状态
+    //获取模态框状态
     isShow:{
       get:function(){
         return this.$store.state.firstCache.model;
@@ -66,6 +158,13 @@ export default {
     modalData(){
      // console.log(this.$store.state.firstCache.sample)
       return this.$store.state.firstCache.sample;
+    },
+    //获取观测因子数据
+    table1Data(){
+      return this.$store.state.firstCache.table1;
+    },
+    table2Data(){
+      return this.$store.state.firstCache.table2;
     }
   }
 }
@@ -80,8 +179,7 @@ export default {
   color: #2c3e50;
   width: 100%;
   min-height: 600px;
-  height: 949px;
-  overflow-y: auto;
+ 
 }
 body {
   background: url(assets/bgm.jpg)no-repeat;
@@ -90,6 +188,7 @@ body {
   color: rgb(51, 51, 51);
   margin: 0;
   padding: 0;
+
 }
 ul li {
   list-style: none;

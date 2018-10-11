@@ -8,25 +8,32 @@ import $ from 'jquery'
 
 //定义全局组件
 Vue.use(Vuex);
+
 let store = new Vuex.Store({
   state: {
     firstCache: {
       yearStart: '1951',//开始年份
       yearEnd: '2018',//结束年份
-      timeFrameStart: new Date(new Date().getTime() - 24 * 60 * 60 * 1000).format('MM-dd'),//获取当前时间前一天,//开始时段
-      timeFrameEnd: new Date().format('MM-dd'),//当前时间 ,//结束时段
+      timeFrameStart: '09-01',
+      timeFrameEnd: "09-30",//当前时间 ,//结束时段
       chooseStation: [], //选中站点信息
-      type: [],//模式选择信息
+      type: {
+        name:'ECMWF',
+        value:'ec'
+      },//模式选择信息
       predictionMsg: {
-        value:'TEM_Avg',
-        caption:'平均气温'
+        value:'TEM_Min',
+        caption:'20-20时日最低温',
+        timeFlag:'时段量',
+        test:'acc'
       },//预报量
-      timeliness: ['24'],//预报时效选择信息
-      newspaper: [],//起报时间选择信息
+      timeliness: '3',//预报时效选择信息
+      newspaper: '8',//起报时间选择信息
       chooseFactors: [],//选择的因子,
       selectReal:[],//再次选择的观测因子
       selectNwp:[],//再次选择的模式因子
-      real:[],//接口获取的因子信息,
+      real:[],//接口获取的观测因子信息,
+      nwp:[],//接口获取的模式因子
       CorrelationData:{},//因子与预报量的相关系数数据,
       model:false,//模态框控制
       sample:[],//样本数据
@@ -61,9 +68,19 @@ let store = new Vuex.Store({
       },
       testName:'',
       isSave:true,//保存按钮状态
-      jypgdata:{}//检验评估数据
-
-
+      jypgdata:{},//检验评估数据
+      whenTime:'08',
+      importFactors:[],//上传数据的因子信息
+      alias:[],//存储因子抽取的返回数据
+      nwpData:[],//保存模式因子的分层数据
+      realData:[],//保存观测因子的分层数据
+      factorTitle:[],//保存拼因子拼接好的名称
+      table1:[],//观测 因子表数据
+      table2:[],//模式因子表数据
+      jmstartTime:'2013-01-01',//建模开始时间
+      jmendTime:'',//建模结束时间
+      syStartTime: '',//实验开始时间
+      syEndTime: '2017-12-31'//实验结束时间
     }
   },
   mutations: {
@@ -73,19 +90,19 @@ let store = new Vuex.Store({
     },
     //开始时间
     startChange (state, payload){
-      state.firstCache.yearStart = payload.startTime;
+      state.firstCache.yearStart = payload;
     },
     //结束时间
     endChange (state, payload){
-      state.firstCache.yearEnd = payload.endTime;
+      state.firstCache.yearEnd = payload;
     },
     //开始时段
     timeFrameS (state, payload){
-      state.firstCache.timeFrameStart = payload.FrameS;
+      state.firstCache.timeFrameStart = payload;
     },
     //结束时段
     timeFrameE (state, payload){
-      state.firstCache.timeFrameEnd = payload.FrameE;
+      state.firstCache.timeFrameEnd = payload;
     },
     //提交选中站点信息
     chooseStation (state, payload){
@@ -120,16 +137,9 @@ let store = new Vuex.Store({
     factors (state, payload){
       state.firstCache.chooseFactors = payload;
     },
-    //因子抽取返回没有数据的因子、删除对应数据
-    noDataFactors (state, payload){
-      let f = state.firstCache.chooseFactors;
-      f.forEach((item,index)=>{
-        if(payload.includes(item.name))
-        {
-          f.splice(index,1)
-        }
-      });
-      state.firstCache.chooseFactors = f;
+    //存储因子抽取的返回数据
+    alias (state, payload){
+      state.firstCache.alias = payload;
     },
     //提交再次选择出的观测因子
     selectReal (state, payload){
@@ -155,6 +165,9 @@ let store = new Vuex.Store({
     //提交获取的因子的信息
     realCommit(state, payload){
       state.firstCache.real = payload
+    },
+    nwpCommit(state, payload){
+      state.firstCache.nwp = payload
     },
     //提交因子与预报量关系数据
     CorrelationData(state, payload){
@@ -220,24 +233,78 @@ let store = new Vuex.Store({
     //提交检验评估数据
     jypgcommit(state,payload){
       state.firstCache.jypgdata = payload;
+    },
+    //提交时次数据
+    whenTimecommit(state,payload){
+      state.firstCache.whenTime = payload;
+    },
+    //提交上传数据的因子信息
+    importFactors(state,payload){
+      state.firstCache.importFactors = payload;
+    },
+    //提交模式因子的分层数据
+    nwpData(state,payload){
+      state.firstCache.nwpData = payload;
+    },
+    //提交观测因子的分层数据
+    realData(state,payload){
+      state.firstCache.realData = payload;
+    },
+    factorTitle(state,payload){
+      state.firstCache.factorTitle = payload;
+    },
+    //提交观测因子表数据
+    table1commit(state,payload){
+      state.firstCache.table1 = payload;
+    },
+    //提交观测因子表数据
+    table2commit(state,payload){
+      state.firstCache.table2 = payload;
+    },
+    //提交建模时间开始
+    jmstartTime(state,payload){
+      state.firstCache.jmstartTime = payload;
+    },
+    jmendTime(state,payload){
+      state.firstCache.jmendTime = payload;
+    },
+    //实验开始时间提交
+    syStartTime(state,payload){
+      state.firstCache.syStartTime = payload;
     }
+    
   }
 });
 //定义容器
 //接口获取全部模型方法
-axios.post('http://101.200.12.178:8090/OFTPService/services/Model/getModels').then((data1)=>{
+
+axios.post('http://101.200.12.178:8090/OFTPServiceV2/services/Model/getModels').then((data1)=>{
+  
   store.commit('ycMethod',data1.data)
 });
 //接口获取实验人名称
-axios.post('http://101.200.12.178:8090/OFTPService/services/Project/listUserName').then((data2)=>{
+axios.post('http://101.200.12.178:8090/OFTPServiceV2/services/Project/listUserName').then((data2)=>{
+ 
+  // let a = {
+  //   testUser:'全部'
+  // }
+  // data2.data.unshift(a)
   store.commit('testUserName',data2.data)
 });
 //接口获取预报要素查询
-axios.post('http://101.200.12.178:8090/OFTPService/services/Project/listForecastElement').then((data3)=>{
+axios.post('http://101.200.12.178:8090/OFTPServiceV2/services/Project/listForecastElement').then((data3)=>{
+  // let a = {
+  //   forecastElementCaption:'全部'
+  // }
+  // data3.data.unshift(a)
   store.commit('listForecastElement',data3.data)
 });
 //接口获取实验模型方法
-axios.post('http://101.200.12.178:8090/OFTPService/services/Project/listForecastMethod').then((data4)=>{
+axios.post( 'http://101.200.12.178:8090/OFTPServiceV2/services/Project/listForecastMethod').then((data4)=>{
+  // let a = {
+  //   forecastMethodCaption:'全部',
+  // }
+  // data4.data.unshift(a)
   store.commit('listForecastMethod',data4.data)
 });
 

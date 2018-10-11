@@ -1,18 +1,37 @@
 <template>
   <div class="analysis">
     <div class="analysis-tools">
-      <ButtonGroup size="large">
-        <Button type="ghost" icon="ios-redo-outline" @click.native="factorsCommit">提交因子</Button>
-        <Button type="ghost" icon="ios-cloud-upload-outline">上传样本</Button>
-        <Button type="ghost" icon="ios-cloud-download-outline" @click.native="exportResult">分析结果导出</Button>
-        <Button type="ghost" icon="ios-list-outline" @click.native="factorsSample">样本构建表</Button>
-      </ButtonGroup>
+       <ButtonGroup vertical>
+        <Button title="因子分析" class="activeButton" type="success" icon="connection-bars" @click.native="factorscorrelation"></Button>
+        <Button title="提交因子" class="activeButton" type="success" icon="ios-redo" @click.native="factorsCommit"></Button>
+        <Button title="样本导出" type="primary" icon="ios-cloud-download" @click.native="exportResult"></Button>
+        <Button title="样本构建表" type="primary" icon="ios-list" @click.native="factorsSample"></Button>
+        <Upload 
+        :show-upload-list="false"
+        :on-success="upload"
+        :data="uploadData"
+        :action="this.$host + 'Sample/upload/'"
+        >
+         <Button type="primary" icon="ios-cloud-upload-outline" style="border-top:none;border-top-left-radius: 0;border-top-right-radius: 0;"></Button>
+        </Upload>
+       </ButtonGroup>
+         
     </div>
     <div class="analysis-factor">
       <div class="analysis-factor-table1">
         <span class="spanTitle">样本因子</span>
         <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
-        <Table border :loading="loading" :columns="columns1" :data="data1" width="100%"></Table>
+        <Table v-if="table1Show" border :loading="loading" :columns="columns1" :data="data1" width="100%"></Table>
+        <div v-if="!table1Show" class="importFactorBox">
+          <Button
+           v-for="item,index of importFactors"
+           :value="item.factor"
+           :key="index"
+           type="primary"
+           @click.native="CheckboxHandle"
+          >{{item.factor}}
+          </Button>
+        </div>
       </div>
       <div class="analysis-factor-table1">
         <span class="spanTitle">预报量[ <strong style="color: red">{{this.predictionMsg}}</strong> ]与各因子相关系数</span>
@@ -27,7 +46,7 @@
           各因子相关系数
         </span>
         <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
-        <Table border stripe :loading="loading" :columns="columns3" :data="data3" width="100%" height="382"></Table>
+        <Table border stripe :loading="loading" :columns="columns3" :data="data3" width="100%" ></Table>
       </div>
       <div class="analysis-factor-table1">
         <span class="spanTitle"></span>
@@ -60,25 +79,8 @@ export default {
   name: "analysis",
   data() {
     return {
-      columns1: [
-        {
-          title: "因子类型",
-          key: "name",
-          width: 320,
-          align: "center",
-          render: (h, params) => {
-            return h("div", [h("span", params.row.name)]);
-          }
-        }
-      ],
-      data1: [
-        {
-          name: "观测因子"
-        },
-        {
-          name: "模式因子"
-        }
-      ],
+      columns1: [],
+      data1: [],
       columns2: [], //表二
       data2: [], //表二
       columns3: [], //表三
@@ -91,9 +93,19 @@ export default {
       myChart: null,
       CorrelationFactors: null, //预报量与因子相关系数
       exportUrl: "", //相关分析结果导出地址
-      loading: true,
+      loading: false,
       RealCheckBoxValue: [],
-      nwpCheckBoxValue: []
+      nwpCheckBoxValue: [],
+      num1: -1, //记录观测因子提交状态
+      num2: -1, //记录模式因子提交状态
+      table1Show: true, //记录表一的显示状态
+      importFactors: [], //记录上传样本的因子
+      uploadData: {
+        para: JSON.stringify({
+          fileNames: ["sample.csv", "sampleEXP.csv"]
+        })
+      },
+      importFactorsData:'',//存储上传数组
     };
   },
   components: {
@@ -110,10 +122,34 @@ export default {
   },
   created() {
     //获取接口数据必须在created生命周期函数里面
-    this.chooseFactorsRow();
-    this.getCorrelation();
   },
   methods: {
+    //开始因子分析
+    factorscorrelation() {
+      this.loading = !this.loading;
+      this.data1 = [];
+      this.columns1 = [];
+      this.data1.push(
+        {
+          name: "观测因子"
+        },
+        {
+          name: "模式因子"
+        }
+      );
+      this.columns1.push({
+        title: "因子类型",
+        key: "name",
+        width: 320,
+        align: "center",
+        render: (h, params) => {
+          return h("div", [h("span", params.row.name)]);
+        }
+      });
+
+      this.chooseFactorsRow();
+      this.getCorrelation();
+    },
     chooseFactorsRow() {
       let self = this;
       let a = {
@@ -122,101 +158,286 @@ export default {
         align: "center",
         render: (h, params) => {
           let self = this;
-          let real = this.realFactors;
-          let nwp = this.nwpFactors;
-          let selectReal = this.selectReal;
-          let selectNwp = this.selectNwp;
-          let factors = "real";
-          if (selectReal.length || selectNwp.length) {
-            if (params.row.name == "观测因子") {
-              return h(
-                CheckboxGroup,
-                {
-                  props: {
-                    value: selectReal
-                  },
-                  nativeOn: {
-                    change: e => {
-                      self.$store.commit("selectReal", e.target.value);
+          // let real = this.realFactors;
+          // let nwp = this.nwpFactors;
+          let nwpData = this.$store.state.firstCache.nwpData;
+          let realData = this.$store.state.firstCache.realData;
+          let realresult = this.$store.state.firstCache.real;
+        
+          let nwp = [],real = [];
+          let factorTile = [];
+          let factors = this.factorData;
+         
+          factors.forEach( item => {
+              
+              let type = item.split('_')[0];
+              if(type === 'nwp'){
+                let a = {};
+                a.value = item;
+                
+                let t1 = item.split('_')[1];
+                let t2 = item.split('_')[2];
+                let t3 = item.split('_')[3];
+                let t4 = item.split('_')[4];
+                let t5 = item.split('_')[5];
+                let t6 = item.split('_')[6];
+                //处理日期差
+                if(t4 == '-1'){
+                  t4 = '前一天'
+                }else if(t4 == '-2'){
+                  t4 = '前2天'
+                }else {
+                  t4 = '当天'
+                }
+
+                //处理起报时间
+                t5 = t5 + '点起报'
+
+                //处理时效
+                t6 ='未来'+ t6.substr(0,1)+'小时的';
+
+                //处理高度
+                if(t3 == '999'){
+                  t3 = '';
+                }else {
+                  t3 = t3 + 'hPa'
+
+                }
+                
+                //处理要素名称
+               
+                nwpData.forEach( opt => {
+                  opt.list.forEach( rst => {
+                    if(rst.element === t2){
+                        t2 = rst.text;
                     }
-                  }
-                },
-                this.chooseFactorsRowCheckbox(h, real, factors)
-              );
-            } else {
-              return h(
-                CheckboxGroup,
-                {
-                  props: {
-                    value: selectNwp
-                  },
-                  nativeOn: {
-                    change: e => {
-                      self.$store.commit("selectNwp", e.target.value);
+                  })
+                })
+
+               a.name = t4 + t5 + t6 +t1 + t3 + t2 ;
+              factorTile.push(a)
+              nwp.push(a)
+              }else {
+                let b = {};
+                b.value = item;
+
+                let t1 = item.split('_')[1];
+                let t2 = item.split('_')[2];
+                let t3 = item.split('_')[3];
+                let t4 = item.split('_')[4];
+                let t5 = item.split('_')[5];
+                let t6 = item.split('_')[6];
+
+                //处理高度
+                if(t1 == 'SURF'){
+                  t3 = '';
+                }else {
+                  t3 = t3 + 'hPa';
+                }
+                //处理日期差
+                 if(t4 == '-1'){
+                  t4 = '前一天'
+                }else if(t4 == '-2'){
+                  t4 = '前2天'
+                }else {
+                  t4 = '当天'
+                }
+
+                //起报时间
+                realresult.forEach( item => {
+                  if(item.name === t2){
+                    if(item.timeFlag === '整点量'){
+                      t5 = t5 + '时的';
+                    }else {
+                      t5 = ''
                     }
+                      
                   }
-                },
-                this.chooseFactorsRowCheckbox(h, nwp)
+                })
+
+                //处理要素名称
+               
+                realData.forEach( opt => {
+                  opt.list.forEach( rst => {
+                    if(rst.value === t2){
+                        t2 = rst.text;
+                    }
+                  })
+                })
+                
+
+                b.name = t4 + t5 + t3 + t2 ;
+                factorTile.push(b);
+                real.push(b); 
+              }
+          })
+
+          this.$store.commit('factorTitle',factorTile)
+          
+
+         
+          if (params.row.name == "观测因子") {
+            let a = [];
+
+            real.forEach((item, index) => {
+              item.onOff = false;
+              a.push(
+                h(
+                  Button,
+                  {
+                    props: {
+                      type: "dashed",
+                      size: "small"
+                    },
+                    attrs: {
+                      dataS: item.value
+                    },
+                    style: {
+                      marginRight: "8px"
+                    },
+                    on: {
+                      click: e => {
+                        self.$store.commit("selectReal", item.value);
+
+                        if (e.target.localName == "span") {
+                          if (
+                            $(e.target)
+                              .parent()
+                              .hasClass("ivu-btn-warning")
+                          ) {
+                            $(e.target)
+                              .parent()
+                              .removeClass("ivu-btn-warning")
+                              .addClass("ivu-btn-dashed");
+                          } else {
+                            $(e.target)
+                              .parent()
+                              .removeClass("ivu-btn-dashed")
+                              .addClass("ivu-btn-warning");
+                          }
+                        } else {
+                          if ($(e.target).hasClass("ivu-btn-warning")) {
+                            $(e.target)
+                              .removeClass("ivu-btn-warning")
+                              .addClass("ivu-btn-dashed");
+                          } else {
+                            $(e.target)
+                              .removeClass("ivu-btn-dashed")
+                              .addClass("ivu-btn-warning");
+                          }
+                        }
+                      }
+                    }
+                  },
+                  item.name
+                )
               );
-            }
+            });
+            return a;
           } else {
-            if (params.row.name == "观测因子") {
-              return h(
-                CheckboxGroup,
-                {
-                  props: {
-                    value: this.chooseFactors
+            let b = [];
+            nwp.forEach((item, index) => {
+              b.push(
+                h(
+                  Button,
+                  {
+                    props: {
+                      type: "dashed",
+                      size: "small"
+                    },
+                    style: {
+                      marginRight: "8px"
+                    },
+                    attrs: {
+                      dataS: item.value
+                    },
+                    on: {
+                      click: e => {
+                        self.$store.commit("selectNwp", item.value);
+                        if (e.target.localName == "span") {
+                          if (
+                            $(e.target)
+                              .parent()
+                              .hasClass("ivu-btn-warning")
+                          ) {
+                            $(e.target)
+                              .parent()
+                              .removeClass("ivu-btn-warning")
+                              .addClass("ivu-btn-dashed");
+                          } else {
+                            $(e.target)
+                              .parent()
+                              .removeClass("ivu-btn-dashed")
+                              .addClass("ivu-btn-warning");
+                          }
+                        } else {
+                          if ($(e.target).hasClass("ivu-btn-warning")) {
+                            $(e.target)
+                              .removeClass("ivu-btn-warning")
+                              .addClass("ivu-btn-dashed");
+                          } else {
+                            $(e.target)
+                              .removeClass("ivu-btn-dashed")
+                              .addClass("ivu-btn-warning");
+                          }
+                        }
+                      }
+                    }
                   },
-                  nativeOn: {
-                    change: (e, v) => {
-                      self.$store.commit("selectReal", e.target.value);
-                    }
-                  }
-                },
-                this.chooseFactorsRowCheckbox(h, real, factors)
+                  item.name
+                )
               );
-            } else {
-              return h(
-                CheckboxGroup,
-                {
-                  nativeOn: {
-                    change: e => {
-                      self.$store.commit("selectNwp", e.target.value);
-                    }
-                  }
-                },
-                this.chooseFactorsRowCheckbox(h, nwp)
-              );
-            }
+            });
+            return b;
           }
         }
       };
+
       this.columns1.push(a);
     },
-    chooseFactorsRowCheckbox(h, data, factors) {
-      let a = [];
-      data.forEach((item, index) => {
-        a.push(
-          h(Checkbox, {
-            props: {
-              label: item
-            }
-          })
-        );
-      });
-      return a;
+    //上传样本因子的点击事件
+    CheckboxHandle(e) {
+      if (e.target.localName == "span") {
+        if (
+          $(e.target)
+            .parent()
+            .hasClass("ivu-btn-warning")
+        ) {
+          $(e.target)
+            .parent()
+            .removeClass("ivu-btn-warning")
+            .addClass("ivu-btn-primary");
+        } else {
+          $(e.target)
+            .parent()
+            .removeClass("ivu-btn-primary")
+            .addClass("ivu-btn-warning");
+        }
+      } else {
+        if ($(e.target).hasClass("ivu-btn-warning")) {
+          $(e.target)
+            .removeClass("ivu-btn-warning")
+            .addClass("ivu-btn-primary");
+        } else {
+          $(e.target)
+            .removeClass("ivu-btn-primary")
+            .addClass("ivu-btn-warning");
+        }
+      }
     },
     //提交需要预测的因子
     factorsCommit() {
-      let tabelBody = $(".ivu-table-body")
-        .eq(0)
-        .find("input.ivu-checkbox-input");
       let value = [];
-      for (let i = 0; i < tabelBody.length; i++) {
-        if ($(tabelBody[i].offsetParent).hasClass("ivu-checkbox-checked")) {
-          value.push(tabelBody[i].value);
+
+      let button = $(".analysis-factor-table1").find("button.ivu-btn-warning");
+      for (let i = 0; i < button.length; i++) {
+        if ($(button[i]).attr("dataS")) {
+          value.push($(button[i]).attr("dataS"));
+        } else {
+          value.push($.trim($(button[i]).text()));
         }
       }
+
       if (!value.length) {
         Message.warning({
           content: "请先选择因子",
@@ -228,10 +449,7 @@ export default {
       let a = {
         factors: value
       };
-      $.post(
-        "http://101.200.12.178:8090/OFTPService/services/Sample/selectFactor",
-        { para: JSON.stringify(a) }
-      )
+      $.post(this.$host + "Sample/selectFactor", { para: JSON.stringify(a) })
         .done(data => {
           if (data && data !== "") {
             Message.success({
@@ -257,18 +475,39 @@ export default {
         });
     },
     //获取相关分析接口数据
-    getCorrelation() {
+    getCorrelation(data) {
+      let self = this;
       axios
-        .post(
-          "http://101.200.12.178:8090/OFTPService/services/Analysis/correlation"
-        )
+        .post(this.$host + "Analysis/correlation")
         .then(response => {
           this.CorrelationUrl =
             "http://101.200.12.178:8090" + response.data.url;
-          this.CorrelationData = response.data.result;
-          this.initTableTwo();
-          this.initTableThree();
-          this.loading = !this.loading;
+
+          self.CorrelationData = response.data.result;
+
+          self.loading = !self.loading;
+          self.initTableTwo(data);
+          self.initTableThree(data);
+          if (data) {
+            self.table1Show = false;
+
+            let re = data.split("\n");
+
+            let re0 = re[0].split(",").splice(2);
+
+            let factor = re0.splice(1); //获取因子
+
+            factor.forEach(item => {
+              let a = {};
+              a.factor = item;
+              a.factorValue = item;
+              self.importFactors.push(a);
+            });
+          
+            self.$store.commit("importFactors", self.importFactors);
+            self.getCorrelationData();
+            self.initEchart();
+          }
         })
         .catch(error => {
           Message.error({
@@ -282,7 +521,7 @@ export default {
     exportResult() {
       if (this.CorrelationUrl !== "") {
         let url = this.CorrelationUrl;
-        this.$local.funDownload(url, "样本抽取数据");
+        this.$local.funDownload(url, "因子分析结果.txt");
       } else {
         Message.warning({
           content: "nothing data",
@@ -292,9 +531,56 @@ export default {
       }
     },
     //渲染表格二
-    initTableTwo() {
-      let factors = this.factors;
-      let station = this.stationSelect;
+    initTableTwo(rs) {
+      let factors = [],
+        station = [];
+      let self = this;
+      let title = [];
+      if (rs) {
+        //rs 为上传数据
+
+        let re = rs.split("\n");
+
+        let re0 = re[0].split(",").splice(2);
+
+        let predictand = re0[0]; //获取预报量
+
+        //预报量信息存入vux
+        let b = {
+          value: predictand,
+          caption: predictand
+        };
+        self.$store.commit("prediction", b);
+        let factor = re0.splice(1); //获取因子
+       
+        factor.forEach(item => {
+          let a = {};
+          a.factor = item;
+          a.factorValue = item;
+          title.push(a);
+        });
+        //获取上传 样本的站点
+        let stationArr = [];
+        let factore = re.splice(1, re.length - 2);
+      
+        factore.forEach(opt => {
+          stationArr.push(opt.split(",").shift());
+        });
+
+        let newStationArr = new Set(stationArr);
+        stationArr = [...newStationArr];
+        stationArr.forEach(opts => {
+          let a = {};
+          a.stationName = opts;
+          a.stationNum = opts;
+          station.push(a);
+        });
+      } else {
+        factors = this.factors;
+        station = this.stationSelect;
+        title = this.$store.state.firstCache.factorTitle;
+      }
+      
       let data = this.CorrelationData;
       let a = [
         {
@@ -313,13 +599,17 @@ export default {
         }
       ];
       let c = [];
-      factors.forEach((item, index) => {
-        let b = {
-          title: item.value,
-          key: "item" + index,
-          align: "center",
-          minWidth:120
-        };
+      
+      title.forEach((item, index) => {
+        let b = {};
+        if(item.name){
+          b.title = item.name;
+        }else {
+          b.title = item.factor;
+        }
+          b.key = "item" + index;
+          b.align = "center";
+          b.minWidth = 120;
         a.push(b);
       });
       station.forEach((item, index) => {
@@ -337,7 +627,7 @@ export default {
             this.station.push(u);
             //默认选中站点
             this.model = item.stationNum;
-            factors.forEach((option, val) => {
+            title.forEach((option, val) => {
               a["item" + val] = data[key][val + 1].toFixed(2);
             });
             c.push(a);
@@ -351,11 +641,36 @@ export default {
       this.initEchart();
     },
     //渲染表格三
-    initTableThree() {
-      let factors = this.factors;
+    initTableThree(rs) {
+      let factors = [],
+        station = [];
       let data = this.CorrelationData;
       let model = this.model;
+      let self = this;
       let chooseValue = [];
+      let title = [];
+      if (rs) {
+        //rs 为上传数据
+        let re = rs.split("\n");
+
+        let re0 = re[0].split(",").splice(2);
+
+        let predictand = re0[0]; //获取预报量
+
+        let factor = re0.splice(1); //获取因子
+
+        factor.forEach(item => {
+          let a = {};
+          a.factor = item;
+          a.factorValue = item;
+          factors.push(a);
+        });
+        title = factors;
+      } else {
+        factors = this.factors;
+        title = this.$store.state.firstCache.factorTitle;
+      }
+
       for (var key in data) {
         if (key == model) {
           chooseValue = data[key];
@@ -381,22 +696,25 @@ export default {
           factor: this.predictionMsg
         }
       ];
-      factors.forEach((item, index) => {
-        let b = {
-          title: item.value,
-          key: "item" + (index + 1),
-          align: "center",
-          minWidth:120
-         
-        };
-        let y = {
-          factor: item.value
-        };
+     
+      title.forEach((item, index) => {
+       
+        let b = {},y={};
+        if(item.name){
+          b.title = item.name;
+          y.factor = item.name;
+        }else {
+          b.title = item.factor;
+          y.factor = item.factor;
+        }
+        b.key = "item" + (index + 1);
+        b.align = "center";
+        b.minWidth = 200;
         a.push(b);
         c.push(y);
       });
       let len = Math.sqrt(chooseValue.length);
-      console.log(len)
+
       let newChooseValue = [];
       for (let i = 0; i < len; i++) {
         let start = i * len;
@@ -410,12 +728,16 @@ export default {
       }
       this.columns3 = a;
       this.data3 = c;
-     
-      console.log(c)
     },
     //站点选择事件
     stationChoose(a) {
-      this.initTableThree();
+    
+      if(this.importFactorsData.length){
+          this.initTableThree(this.importFactorsData);
+      }else {
+         this.initTableThree();
+      }
+      
       //站点改变、手动重新获取数据
       this.getCorrelationData();
       this.myChart.setOption(this.chartsOption(), true);
@@ -424,7 +746,14 @@ export default {
     getCorrelationData() {
       let data = this.$store.state.firstCache.CorrelationData;
       let model = this.model;
-      let factors = this.factors;
+      let factors = this.$store.state.firstCache.factorTitle;
+      let importFactors = this.$store.state.firstCache.importFactors;
+      let t = [];
+      if(importFactors.length){
+        t = importFactors;
+      }else {
+        t = factors;
+      }
       let cache = {
         chooseStationCorrelationValue: [],
         chooseStationCorrelationText: []
@@ -433,7 +762,7 @@ export default {
         if (item.stationNum == Number(model)) {
           for (var key in item) {
             if (key.search("item") !== -1) {
-              if (item[key] === '-9999.00') {
+              if (item[key] === "-9999.00") {
                 cache.chooseStationCorrelationValue.push(0);
               } else {
                 cache.chooseStationCorrelationValue.push(item[key]);
@@ -442,13 +771,21 @@ export default {
           }
         }
       });
-      factors.forEach(item => {
-        cache.chooseStationCorrelationText.push(item.value);
+    
+      t.forEach(item => {
+        if(item.factor){
+          cache.chooseStationCorrelationText.push(item.factor);
+        }else {
+          cache.chooseStationCorrelationText.push(item.name);
+        }
+        
       });
       this.correlationFactors = cache;
+      
     },
     //获取因子与预报量相关系数
     chartsOption() {
+    
       let option = {
         title: {
           text: this.predictionMsg + "与各因子相关系数",
@@ -537,7 +874,46 @@ export default {
     },
     //显示数据构建样本
     factorsSample() {
+      let sample = this.$store.state.firstCache.sample;
+      let importFactors = this.$store.state.firstCache.importFactors;
+      if (importFactors.length) {
+        sample.forEach(item => {
+          if (item.name === "选择的因子") {
+            let a = "";
+            importFactors.forEach(opt => {
+              a += opt.factor + ",";
+            });
+            item.information = a;
+          }
+        });
+      }
+
       this.$store.commit("modelIsShow", true);
+    },
+    //上传文件
+    upload(response, file, fileList) {
+      let self = this;
+    
+      $.ajax({
+        type: "POST",
+        url: "http://101.200.12.178:8090" + response,
+        beforeSend: function(xhr) {
+          //beforeSend定义全局变量
+          xhr.overrideMimeType("text/plain;charset=gb18030");
+        },
+        success: function(data) {
+          if (data) {
+            self.loading = !self.loading;
+            self.$Notice.success({
+              title: "上传成功"
+              // desc: nodesc ? '' : 'Here is the notification description. Here is the notification description. '
+            });
+            self.getCorrelation(data);
+            self.importFactorsData = data;
+            
+          }
+        }
+      });
     }
   },
   computed: {
@@ -545,14 +921,21 @@ export default {
     factors() {
       return this.$store.state.firstCache.chooseFactors;
     },
+    //获取因子抽取返回的数据
+    factorData(){
+      return this.$store.state.firstCache.alias
+    },
     realFactors() {
       let factors = this.factors;
       let realFactors = [];
+
       factors.forEach(item => {
-        if (item.hourSpan) {
-          if (item.type == "real") {
-            realFactors.push(item.name);
-          }
+        if (item.model == "real") {
+          let a = {
+            name: item.factor,
+            value: item.factorValue
+          };
+          realFactors.push(a);
         }
       });
       return realFactors;
@@ -561,9 +944,21 @@ export default {
       let factors = this.factors;
       let nwpFactors = [];
       factors.forEach(item => {
-        if (item.hourSpan) {
-          if (item.type == "nwp") {
-            nwpFactors.push(item.name);
+        if (item.model == "nwp") {
+          if (item.level !== "地面") {
+            let arr = item.factorValue.split("_");
+            arr.pop();
+            let a = {
+              name: item.factor + "(" + item.level + ")",
+              value: arr.join("_") + "_" + item.levelValue
+            };
+            nwpFactors.push(a);
+          } else {
+            let a = {
+              name: item.factor,
+              value: item.factorValue
+            };
+            nwpFactors.push(a);
           }
         }
       });
@@ -584,14 +979,6 @@ export default {
     //获取预报量
     predictionMsg() {
       return this.$store.state.firstCache.predictionMsg.caption;
-      //        let real = this.$store.state.firstCache.real;
-      //        let predictionText = '';
-      //        real.forEach((item) => {
-      //          if (item.name == prediction) {
-      //            predictionText = item.caption
-      //          }
-      //        });
-      //        return predictionText;
     }
   },
   beforeDestroy() {
@@ -603,10 +990,12 @@ export default {
 </script>
 <style>
 .analysis-tools {
-  height: 80px;
+  /* height: 80px;
   line-height: 80px;
   box-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.14), 0 1px 5px 0 rgba(0, 0, 0, 0.12),
-    0 3px 1px -2px rgba(0, 0, 0, 0.2);
+    0 3px 1px -2px rgba(0, 0, 0, 0.2); */
+    position: absolute;
+    right: -44px;
 }
 
 .analysis-factor .spanTitle {
@@ -632,5 +1021,23 @@ export default {
 
 .ivu-table-header .center {
   text-align: center;
+}
+
+.analysis-tools .ivu-upload {
+  display: inline-block;
+}
+.importFactorBox button {
+  margin: 10px;
+}
+.ivu-table-cell {
+  padding: 5px;
+}
+.ivu-table-cell button {
+  margin-top: 5px;
+}
+.analysis-tools .ivu-btn-group-vertical .activeButton {
+  background: rgb(71,203,137);
+  color: white;
+  
 }
 </style>

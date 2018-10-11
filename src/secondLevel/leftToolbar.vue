@@ -1,40 +1,81 @@
 <template>
   <div class="leftToolbar-body">
-    <!--年份选择-->
-    <toolbarItem title="年份:" :startTime="yearStart" :endTime="yearEnd" ></toolbarItem>
-    <!--时段选择-->
-    <toolbarItem title="时段:">
-      <div class="datePick">
-        <label for="myDate1">开始&nbsp</label>
-        <myDatepicker
-          field="myDate1"
-          v-model="date1"
-          format="mm-dd"
-          :backward="false"
-          :no-today="true"
-          :forward="false"
-          @click.native ="timeFrameS"
+     <!--预报量选择-->
+    <toolbarItem title="预报量:"  className="select">
+      <Select clearable 
+       style="width:200px;margin: 10px 0" 
+        @on-change="prediction($event)" 
+        :value="initPrediction" 
+        ref="ybl" 
+        :label-in-value="true"
+        
         >
+        <Option  v-for="item in FST" 
+        :value="item.name" 
+        :key="item.id" 
+        :label="item.caption"
+        :data-s="item.timeFlag"
+        :data-test="item.test"
+        ></Option>
+      </Select>
+    </toolbarItem>
 
-        </myDatepicker>
-      </div>
-      <div class="datePick">
-        <label for="myDate2">结束&nbsp</label>
-        <myDatepicker
-          field="myDate2"
-          v-model="date2"
-          format="mm-dd"
-          :backward="false"
-          :no-today="true"
-          :forward="false"
-          @click.native="timeFrameE"
-          ref="FrameE"
+
+      <!--时段选择-->
+    <toolbarItem title="样本时间:">
+      <div class="yearFrame" style="text-align:left;margin-top:10px">
+        年份：
+       <DatePicker 
+       type="year" 
+       :value="yearStart" 
+       placeholder="Select" 
+       style="width: 110px"
+       @on-change="yearSChange"
         >
-        </myDatepicker>
+        </DatePicker>
+        至
+       <DatePicker 
+       type="year" 
+       :value="yearEnd"  
+       placeholder="Select" 
+       style="width: 110px"
+       @on-change="yearEChange"
+       ></DatePicker>
+      </div>
+      <div class="monthFrame" style="margin-top:10px;text-align:left">
+        每年：
+        <DatePicker type="date" @on-change="timeFrameS"  :value="timeFrameStart" format="MM-dd"  placeholder="Select " style="width: 110px"></DatePicker>
+        至
+        <DatePicker type="date" @on-change="timeFrameE"  :value="timeFrameEnd" format="MM-dd" placeholder="Select " style="width: 110px"></DatePicker>
+      </div>
+      <div class="daysFrame" v-show="isTimeFlag === '整点量'" style="text-align:left;margin:10px 0">
+        每天：
+         <Select   style="width:110px;" >
+          <Option v-for="item,index of everyDays" :key="index" :value="item">{{item}}点</Option>
+        </Select>
       </div>
     </toolbarItem>
+
+
+    <!--业务描述-->
+    <toolbarItem title="业务描述:"  className="model">
+      <div style="margin: 10px 0;">
+        起报时间
+       <Select style="width:95px;" :value="initNewspaper" @on-change="newspaper">
+        <Option value="8">8点</Option>
+        <Option value="20">20点</Option>
+      </Select>
+        时效
+       <Select style="width:95px;":value="initTimeliness" @on-change="timeliness">
+        <Option value="3">3小时</Option>
+        <Option value="6">6小时</Option>
+      </Select>
+      </div>
+      
+    </toolbarItem>
+
     <!--站点选择-->
-    <toolbarItem title="站点:">
+    <toolbarItem title="预报站点:">
       <div class="chooseStation">
         <vueBtn v-for="m,k,d in initstationcode" :btnText="m.stationName" :key="d" btnType="warning"></vueBtn>
       </div>
@@ -42,29 +83,7 @@
         <vueBtn btnText="选择" btnType="info" @click.native="modalIsShow"></vueBtn>
       </div>
     </toolbarItem>
-    <!--模式选择-->
-    <toolbarItem title="模式:"  className="model">
-      <vueBtn btnText="EC" :btnType="initType == 'EC' ? 'warning' : 'info' "  value="EC" @click.native="isRadio"></vueBtn>
-      <vueBtn btnText="GRAPES" :btnType="initType == 'GRAPES' ? 'warning' : 'info'" value="GRAPES" @click.native="isRadio"></vueBtn>
-      <vueBtn btnText="WRF" :btnType="initType == 'WRF' ? 'warning' : 'info'" value="WRF" @click.native="isRadio"></vueBtn>
-    </toolbarItem>
-    <!--预报量选择-->
-    <toolbarItem title="预报量:"  className="select">
-      <Select clearable  style="width:200px;margin: 10px 0" @on-change="prediction" :value="initPrediction" ref="ybl" :label-in-value="true">
-        <Option  v-for="a in Real" :value="a.value" :key="a.value" :label="a.caption"></Option>
-      </Select>
-    </toolbarItem>
-    <!--预报时效-->
-    <toolbarItem title="预报时效:"  className="timeliness" >
-      <Select clearable  style="width:200px;margin: 10px 0" @on-change="timeliness" :value="initTimeliness" ref="ybxs">
-        <Option v-for="Span in hourSpan" :value="Span" :key="Span">{{ Span }}小时</Option>
-      </Select>
-    </toolbarItem>
-    <!--起报时间-->
-    <toolbarItem title="起报时间:" className="stTime">
-      <vueBtn  btnText="08"  :btnType="initNewspaper == '08' ? 'warning' : 'info'" @click.native="newspaper" value="08"></vueBtn>
-      <vueBtn  btnText="20"  :btnType="initNewspaper == '20' ? 'warning' : 'info'" @click.native="newspaper" value="20"></vueBtn>
-    </toolbarItem>
+
     <!--模态框组件 站点选择-->
     <modal title="Fade Modal" effect="zoom" width="1000" :show.sync="isShow" :backdrop="false">
       <div slot="modal-header" class="modal-header">
@@ -150,6 +169,12 @@
         coms: [],
         Real: [],
         hourSpan: '',
+        // yearFrameStart: '1951年',//样本时间年份时段开始
+        // yearFrameEnd: '2018',//样本时间年份时段结束
+        // monthFrameStart: '09月1日',//样本时间月份时段开始
+        // monthFrameEnd: '09月30日',//样本时间月份时段开始
+        //newspaperTime: '8',//默认起报时间
+        ageing: '3',//默认时效
         stationCode:{
           region: [{
             id: 'mainCity',
@@ -449,7 +474,10 @@
             longitude: '108.03',
             altitude: '33'
           }]
-        }
+        },
+        FST:[],
+         //记录选择的预报量是否是时段量
+      isTimeFlag:'',
       }
     },
     components: {
@@ -644,38 +672,43 @@
           })
 
       },
+      //年份开始时段改变
+      yearSChange(e){
+        this.$store.commit('startChange',e)
+      },
+       //年份结束时段改变
+      yearEChange(e){
+        this.$store.commit('endChange',e)
+      },
       //开始时段改变
-      timeFrameS(){
-        this.$store.commit('timeFrameS',{
-          FrameS:this.date1
-        })
+      timeFrameS(e){
+        this.$store.commit('timeFrameS',e)
       },
       //结束时段改变
-      timeFrameE(){
-        this.$store.commit('timeFrameE',{
-          FrameE:this.date2
-        })
+      timeFrameE(e){
+        this.$store.commit('timeFrameE',e)  
       },
       //预报量改变
       prediction(a){
         let b = {};
         b.value = a.value;
         b.caption = a.label;
+        setTimeout(() => {
+        let s = $('.select').find('.ivu-select-item-selected').data('s');
+        let test =  $('.select').find('.ivu-select-item-selected').data('test');
+        b.timeFlag = s;
+        b.test = test;
         this.$store.commit('prediction',b);
+        this.isTimeFlag = s;
+        }, 500);
       },
       //预报时效改变
       timeliness(a){
-        let b = [];
-        b.push(a);
-        this.$store.commit('timeliness',b)
+        this.$store.commit('timeliness',a)
       },
       //起报时间选择
       newspaper(ev){
-        let text = $(ev.target).text();
-        $(ev.target).removeClass('btn-info').addClass('btn-warning').siblings().removeClass('btn-warning').addClass('btn-info');
-        let a = [];
-        a.push(text);
-        this.$store.commit('newspaper',a)
+        this.$store.commit('newspaper',ev)
       },
       //push的同时更新站名数组的方法
       pushStationText(){
@@ -720,46 +753,32 @@
       },
       //初始化计预报时效选择
       initTimeliness(){
-        return this.$store.state.firstCache.timeliness[0];
+        return this.$store.state.firstCache.timeliness;
       },
       //初始化预报量
       initPrediction(){
+        
         return this.$store.state.firstCache.predictionMsg.value;
       },
       //初始化起报时间
       initNewspaper(){
-        return $.trim(this.$store.state.firstCache.newspaper[0]);
+        return $.trim(this.$store.state.firstCache.newspaper);
+      },
+      //样本时间 每天
+      everyDays(){
+        let a = [];
+        for(let i = 0; i < 24 ;i ++){
+          a.push(i)
+        }
+        return a;
       }
     },
     created(){
-      function getRealHttp (){
-        return axios.post('http://101.200.12.178:8090/OFTPService/services/Sample/getSampleInfoReal')
-      }
-      function getHourSpan (){
-        return axios.post('http://101.200.12.178:8090/OFTPService/services/Sample/getSampleInfoNWP')
-      }
-      this.timer();
-
-      axios.all([getRealHttp(),getHourSpan()])
-        .then(axios.spread((b,c)=>{
-          b.data.forEach((item,index)=>{
-            let a = {
-              value:item.name,
-              caption:item.caption
-            };
-            this.Real.push(a);
-          });
-          let hourSpan = c.data[0].hourSpanList;
-          let arr = [];
-          hourSpan.split(',').forEach((item,index)=>{
-            arr.push(item)
-          });
-          this.hourSpan = arr;
-          this.$store.commit('realCommit',b.data)
-        }))
-        .catch((error)=> {
-          console.log(error)
-        });
+    
+      axios.post('http://101.200.12.178:8090/OFTPService/services/Sample/getSampleInfoFST').then( data => {
+        
+        this.FST = data.data;
+      })
     },
     mounted(){
       /*
@@ -792,7 +811,16 @@
     width: auto;
     left: -42px;
   }
-  .datePick {
+  .leftToolbar .ivu-picker-panel-body {
+    color: black;
+  }
+  .leftToolbar .ivu-input {
+    text-align: center;
+  }
+  .leftToolbar .ivu-select-selected-value {
+    text-align: center;
+  }
+  /* .datePick {
     margin-bottom: 10px;
     margin-top: 10px
   }
@@ -802,12 +830,12 @@
   }
 
   .datePick #myDate1, #myDate2 {
-    width: 180px;
+    width: 140px;
     border: solid 1px #9ac3f3;
     border-radius: 4px;
     box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075);
     text-align: center;
-  }
+  } */
 
   .stationName {
     margin-bottom: 10px;
@@ -840,5 +868,9 @@
   .chooseStation button{
     margin: 3px;
     padding: 3px 5px;
+  }
+  .qibaojs .ivu-select-selection{
+    height: 28px;
+    top: -2px;
   }
 </style>

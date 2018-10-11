@@ -29,12 +29,12 @@
           <!--样本信息-->
           <span class="spanTitle">样本信息</span>
           <div class="testDetails_item_content">
-            <strong class="r">日期&nbsp:</strong><span>&nbsp{{testDate}}</span>
+            <strong class="r">样本时间&nbsp:</strong><span>&nbsp{{testDate}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
             <strong class="r">站点&nbsp:</strong><span>&nbsp{{chooseStation}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
-            <strong class="r">模式&nbsp:</strong><span>&nbsp{{type}}</span>
-            <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
+            <!-- <strong class="r">模式&nbsp:</strong><span>&nbsp{{type}}</span>
+            <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/> -->
             <strong class="r">预报量&nbsp:</strong><span>&nbsp{{predictionMsg}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
             <strong class="r"> 起报时间&nbsp:</strong><span>&nbsp{{newspaper}}</span>
@@ -68,9 +68,9 @@
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
             <strong>实验方案&nbsp:</strong><span>&nbsp{{getCaption.label}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
-            <strong>建模样本&nbsp:</strong><span>&nbsp{{getTrainTime.trainStartYear +' 至 '+getTrainTime.trainEndYear}}</span>
+            <strong>建模样本&nbsp:</strong><span>&nbsp{{jmTimeS}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
-            <strong>实验样本&nbsp:</strong><span>&nbsp{{getTrainTime.forecastStartYear +' 至 '+getTrainTime.forecastEndYear}}</span>
+            <strong>实验样本&nbsp:</strong><span>&nbsp{{jmTimeE}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
           </div>
           <!--实验备注及核心代码-->
@@ -107,7 +107,7 @@
       if (this.getTestName.length) {
         this.testName = this.getTestName;
       }
-      console.log(this.columns2)
+    
     },
     methods: {
       //保存实验详情
@@ -161,7 +161,7 @@
           flag: flag,
           remark: this.mark.length ? this.encodeUnicode(this.mark) : ''
         };
-        console.log(param)
+        
         $.post('http://101.200.12.178:8090/OFTPService/services/Project/insertProject', {para: JSON.stringify(param)})
           .done(data => {
             if (data) {
@@ -173,6 +173,15 @@
                 closable: true
               });
               this.$router.push('/item5/Catalogue')
+              //接口获取预报要素查询
+              
+            $.post('http://101.200.12.178:8090/OFTPServiceV2/services/Project/listForecastElement').then((data3)=>{
+              let a = {
+                  forecastElementCaption:'全部'
+                }
+                data3.data.unshift(a)
+              this.$store.commit('listForecastElement',data3)
+            });
             }
           }).fail((a, b, c) => {
           Message.error({
@@ -227,10 +236,21 @@
         return currentdate;
       },
       testDate(){
-        let start = this.$store.state.firstCache.ycTimeStart;
-        let end = this.$store.state.firstCache.ycTimeEnd;
+        let start = this.$store.state.firstCache.yearStart +'年'+ this.$store.state.firstCache.timeFrameStart;
+        let end = this.$store.state.firstCache.yearEnd + '年' + this.$store.state.firstCache.timeFrameEnd;
         return start + ' 至 ' + end;
 
+      },
+      //获取建模与预报时间
+      jmTimeS(){
+        let jm = this.$store.state.firstCache.jmstartTime +'至'+this.$store.state.firstCache.jmendTime;
+       
+        return jm 
+      },
+       jmTimeE(){
+      
+        let sy = this.$store.state.firstCache.syStartTime +'至'+this.$store.state.firstCache.syEndTime;
+        return sy;
       },
       //获取站点
       chooseStation(){
@@ -312,7 +332,7 @@
       },
       //获取检验评估结果
       getJypg(){
-        console.log(this.$store.state.firstCache.jypgdata)
+        
         return this.$store.state.firstCache.jypgdata;
       }
 

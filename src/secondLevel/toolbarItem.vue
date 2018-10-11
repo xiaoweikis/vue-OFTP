@@ -39,7 +39,7 @@
     display: block;
     width: 100%;
     border-bottom: 2px solid #009688;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: bold;
     text-align: left;
     font-family: '宋体';
