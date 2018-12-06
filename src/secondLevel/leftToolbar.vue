@@ -1,5 +1,20 @@
 <template>
   <div class="leftToolbar-body">
+     <!--业务描述-->
+    <toolbarItem title="试验笔记:"  className="model">
+      <div style="margin: 10px 0;">
+        <Input 
+        type="textarea" 
+        :value="getdescribe" 
+        :autosize="true" 
+        @on-blur="describeCommit" 
+        placeholder="本次试验起报时间为08点，预报时效为0-24小时"
+        :rows="3"
+        />
+      </div>
+      
+    </toolbarItem>
+
      <!--预报量选择-->
     <toolbarItem title="预报量:"  className="select">
       <Select clearable 
@@ -43,7 +58,7 @@
        ></DatePicker>
       </div>
       <div class="monthFrame" style="margin-top:10px;text-align:left">
-        每年：
+        时段：
         <DatePicker type="date" @on-change="timeFrameS"  :value="timeFrameStart" format="MM-dd"  placeholder="Select " style="width: 110px"></DatePicker>
         至
         <DatePicker type="date" @on-change="timeFrameE"  :value="timeFrameEnd" format="MM-dd" placeholder="Select " style="width: 110px"></DatePicker>
@@ -57,32 +72,28 @@
     </toolbarItem>
 
 
-    <!--业务描述-->
-    <toolbarItem title="业务描述:"  className="model">
-      <div style="margin: 10px 0;">
-        起报时间
-       <Select style="width:95px;" :value="initNewspaper" @on-change="newspaper">
-        <Option value="8">8点</Option>
-        <Option value="20">20点</Option>
-      </Select>
-        时效
-       <Select style="width:95px;":value="initTimeliness" @on-change="timeliness">
-        <Option value="3">3小时</Option>
-        <Option value="6">6小时</Option>
-      </Select>
-      </div>
-      
-    </toolbarItem>
-
+   
     <!--站点选择-->
     <toolbarItem title="预报站点:">
       <div class="chooseStation">
         <vueBtn v-for="m,k,d in initstationcode" :btnText="m.stationName" :key="d" btnType="warning"></vueBtn>
       </div>
       <div class="chooseBtn">
-        <vueBtn btnText="选择" btnType="info" @click.native="modalIsShow"></vueBtn>
+        <vueBtn btnText="试验站点" btnType="info" @click.native="modalIsShow"></vueBtn>
       </div>
     </toolbarItem>
+     <div class="positonDiv">
+      <Button 
+      type="success"
+      long title="因子抽取" 
+      icon="ios-redo" 
+      @click.native="extraction"
+      :loading="loading" 
+      >
+        <span v-if="!loading">因子抽取</span>
+        <span v-else>Loading...</span>
+      </Button>
+    </div>
 
     <!--模态框组件 站点选择-->
     <modal title="Fade Modal" effect="zoom" width="1000" :show.sync="isShow" :backdrop="false">
@@ -136,7 +147,7 @@
   import modal from 'vue-strap/src/modal';
   import alert from 'vue-strap/src/alert';
   import $ from 'jquery';
-  import { Select , Option } from 'iview';
+  import { Select , Option ,Message ,Modal} from 'iview';
   import 'iview/dist/styles/iview.css';
   import axios from 'axios';
 
@@ -169,11 +180,6 @@
         coms: [],
         Real: [],
         hourSpan: '',
-        // yearFrameStart: '1951年',//样本时间年份时段开始
-        // yearFrameEnd: '2018',//样本时间年份时段结束
-        // monthFrameStart: '09月1日',//样本时间月份时段开始
-        // monthFrameEnd: '09月30日',//样本时间月份时段开始
-        //newspaperTime: '8',//默认起报时间
         ageing: '3',//默认时效
         stationCode:{
           region: [{
@@ -201,7 +207,8 @@
             name: '东北',
             stations: ['57437', '57426', '57432', '57339', '57338', '57348', '57349', '57345', '57333', '57431']
           }],
-          station: [{
+          station: [
+            {
             region: 'mainCity',
             areaCode: '500106',
             stationCode: '57516',
@@ -473,11 +480,15 @@
             latitude: '30.3',
             longitude: '108.03',
             altitude: '33'
-          }]
+          }
+          ]
         },
         FST:[],
          //记录选择的预报量是否是时段量
       isTimeFlag:'',
+      loading:false,
+      exportUrl:'',
+      describe:'',//实验描述
       }
     },
     components: {
@@ -487,12 +498,86 @@
       modal,
       alert,
       Select,
-      Option
+      Option,
+      Message,
+      Modal
     },
     watch: {
 
     },
     methods: {
+       //因子抽取
+    extraction() {
+      this.loading = !this.loading;
+      let Factors = this.getFactors;
+      if (!this.$store.state.firstCache.chooseStation.length) {
+         this.loading = !this.loading;
+        Message.warning({
+          content: "还没有选择站点",
+          duration: 8,
+          closable: true
+        });
+        return;
+      }
+     
+      if (!this.$store.state.firstCache.newspaper.length) {
+         this.loading = !this.loading;
+        Message.warning({
+          content: "还没有选择起报时间",
+          duration: 8,
+          closable: true
+        });
+        return;
+      }
+     
+     
+      if (!Factors.length){
+        this.loading = !this.loading;
+        Message.warning({
+          content: "还没有选择因子",
+          duration: 8,
+          closable: true
+        });
+        return;
+      }
+         
+      let para = JSON.stringify(this.getExtractionParam);
+   
+      $.post(this.$host + "Sample/extract",{para: para})
+        .done(data => {
+          //处理没有数据的因子，在vueX里面删除对应数据
+          if (data && data.url) {
+            let alias = data.alias;
+            this.$store.commit("alias", alias);
+            this.loading = !this.loading;
+           
+            Message.success({
+              content: "因子抽取成功",
+              duration: 8,
+              closable: true
+            });
+            this.exportUrl = "http://101.200.12.178:8090" + data.url;
+            this.$store.commit('item1Url',this.exportUrl)
+          } else {
+            this.exportUrl = "";
+           this.loading = !this.loading;
+            Message.error({
+              content: "因子抽取失败，请重新尝试",
+              duration: 8,
+              closable: true
+            });
+          }
+        })
+        .fail(error => {
+         
+          this.exportUrl = "";
+          Message.error({
+            content: error,
+            duration: 8,
+            closable: true
+          });
+        });
+    },
       timer(){
         this.date2 = this.$store.state.firstCache.timeFrameEnd;//当前时间
         this.date1 = this.$store.state.firstCache.timeFrameStart;//获取当前时间前一天
@@ -724,9 +809,105 @@
           }
           i++;
         }
+      },
+      //提交实验描述
+      describeCommit(e){
+        let val = $(e.target).val();
+        this.$store.commit('describeCommit',val)
       }
     },
     computed: {
+      //获取实验描述
+      getdescribe(){
+        return this.$store.state.firstCache.describe;
+      },
+      //因子抽取参数获取，全部参数都以store状态里的参数为准
+      getExtractionParam() {  
+        let station = this.$store.state.firstCache.chooseStation;
+        let Factors = this.getFactors;
+        let nwp = this.$store.state.firstCache.nwp;
+        let real = this.$store.state.firstCache.real;
+
+        let FactorsArr = [];
+        let stationArr = [];
+        station.forEach(item => {
+          stationArr.push(item.stationNum);
+        });
+        console.log(Factors)
+        let typeNoData = [];
+        Factors.forEach(item => {
+        
+          if (item.model === "nwp") {
+           let a = {};
+            a.type = "nwp";
+            a.forecastTime = Number(item.newspaperTimeValue);
+            a.daySpan = Number(item.datePoorValue);
+            a.hourSpan = Number(item.jetLagValue);
+
+            if (item.level !== "地面") {
+              nwp.forEach(opt => {
+                if(item.typeValue == opt.nwpType){
+                   if(Number(item.levelValue) === opt.height && item.factor === opt.elementCaption){
+                    a.name = opt.name;
+                  }
+                }
+              });
+            } else {
+              
+              nwp.forEach(i => {
+                if(item.typeValue == i.nwpType && item.factorValue == i.name){
+                  a.name = i.name;
+                }
+              });
+            
+            }
+            if(!a.name){
+              typeNoData.push(item.typeValue)
+            }
+            FactorsArr.push(a);
+          } else {
+            let a = {};
+            a.type = "real";
+            a.name = item.factorValue;
+            a.hour = Number(item.whenTimeValue);
+            a.daySpan = Number(item.datePoorValue);
+        
+            FactorsArr.push(a);
+          }
+        });
+        
+        
+        
+        return {
+          startYear: Number(this.$store.state.firstCache.yearStart),
+          endYear: Number(this.$store.state.firstCache.yearEnd),
+          startMonth: Number(
+            this.$store.state.firstCache.timeFrameStart.split("-")[0]
+          ),
+          endMonth: Number(
+            this.$store.state.firstCache.timeFrameEnd.split("-")[0]
+          ),
+          startDate: Number(
+            this.$store.state.firstCache.timeFrameStart.split("-")[1]
+          ),
+          endDate: Number(
+            this.$store.state.firstCache.timeFrameEnd.split("-")[1]
+          ),
+          elementForecast: $.trim(
+            this.$store.state.firstCache.predictionMsg.value
+          ),
+          timeFlag: this.$store.state.firstCache.predictionMsg.timeFlag,
+          hour: Number(this.$store.state.firstCache.whenTime),
+          stations: stationArr,
+          forecastHour: Number(this.$store.state.firstCache.newspaper),
+          forecastHourSpan: Number(this.$store.state.firstCache.timeliness),
+          factors: FactorsArr
+        };
+      },
+        //获取vux的factors
+      getFactors(){
+        return this.$store.state.firstCache.chooseFactors
+      },
       //初始化的开始年份
       yearStart(){
         return this.$store.state.firstCache.yearStart;
@@ -775,7 +956,7 @@
     },
     created(){
     
-      axios.post('http://101.200.12.178:8090/OFTPService/services/Sample/getSampleInfoFST').then( data => {
+      axios.post(this.$host+'Sample/getSampleInfoFST').then( data => {
         
         this.FST = data.data;
       })
@@ -873,4 +1054,9 @@
     height: 28px;
     top: -2px;
   }
+  .positonDiv {
+  
+  width: 320px;
+ 
+}
 </style>

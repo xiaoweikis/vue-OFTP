@@ -43,6 +43,7 @@
       v-model="modal"
       class-name="vertical-center-modal"
       width="1000"
+      footer-hide
     >
     <div class="testDetails">
         <div class="testDetails_item">
@@ -67,14 +68,15 @@
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/> -->
             <strong class="r">预报量&nbsp:</strong><span>&nbsp{{getForecastElement}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
-            <strong class="r"> 起报时间&nbsp:</strong><span>&nbsp{{details[0].forecastHour}}</span>
+            <strong class="r">预报因子&nbsp:</strong><span>&nbsp{{JSON.parse(details[0].factorAll).join(' , ')}}</span>
+            <!-- <strong class="r"> 起报时间&nbsp:</strong><span>&nbsp{{details[0].forecastHour}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
             <strong class="r">预报时效&nbsp:</strong><span>&nbsp{{details[0].forecastHourSpan}}</span>
-            <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
-            <div v-if="JSON.parse(details[0].factorAll).length">
+            <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/> -->
+            <!-- <div v-if="JSON.parse(details[0].factorAll).length">
               <strong class="r">所选因子&nbsp:</strong><span>&nbsp{{factorAll}}</span>
               <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
-            </div>
+            </div> -->
             <div v-if="details[0].factorRealCaption.length">
               <strong class="r">观测因子&nbsp:</strong><span>&nbsp{{details[0].factorRealCaption}}</span>
               <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
@@ -116,10 +118,24 @@
           <span class="spanTitle">实验备注及核心代码</span>
           <div class="testDetails_item_content_r">
             <Input v-if="details[0].remark.length" :value="details[0].remark" :readonly="false"/>
-            <Input type="textarea" :readonly="true" :rows="20" :value="uniCodePython"/>
+            <Input type="textarea" :readonly="true" :rows="20" :value="uniCodePython" style="margin:0 0 10px 0"/>
+          </div>
+          <Button 
+            long 
+            type="success" 
+            style="width:80%"
+            @click.native="issue"
+            > 
+            发布
+          </Button>
+          <div v-show="issueInformation" style="margin-top:10px">
+            <Input placeholder="请输入中文名称" style="width:300px" v-model="CHname"></Input>
+            <Input placeholder="请输入英文名称" style="width:300px" v-model="CNname"></Input>
+            <Button type="success" @click.native="issueCommit">确定发布</Button>
+            <p></p>
           </div>
         </div>
-      </div> -->
+      </div> 
     </Modal>
   </div>
 </template>
@@ -252,10 +268,11 @@
                     click: () => {
                       this.modal = true;
                       let id = params.row.id;
+                      this.ID = id;
                       $.post('http://101.200.12.178:8090/OFTPService/services/Project/getProject', {para: JSON.stringify({id: id})})
                         .done(data => {
                           this.details = data;
-                        
+                          this.issueInformation = false;
                         })
                     }
                   }
@@ -279,9 +296,11 @@
         ],
         rows: [],
         modal: false,
-        getProjects: []
-
-
+        getProjects: [],
+        issueInformation:false,
+        CHname:'',//中文名称
+        CNname:'',//英文名称
+        ID:''//选中实验条目的ID
       }
     },
     components: {
@@ -358,7 +377,7 @@
           } else {
             a.title = item.title;
             a.key = item.key;
-            a.width = 120;
+            a.minWidth = 120;
             a.align = 'center';
           }
           b.push(a);
@@ -474,6 +493,33 @@
       //计算检验评估数据
       testResultCols(){
         
+      },
+       //发布
+      issue(){
+        this.issueInformation = true;
+      },
+      //确定发布
+      issueCommit(){
+        if(this.CHname && this.CNname){
+          let a = {};
+          a.projectID = this.ID;
+          a.nameEN = this.CNname;
+          a.nameCH = this.CHname;
+          $.post(this.$host+'Model/publish',{para:JSON.stringify(a)})
+          .done( data => {
+            console.log(data)
+            if(data.return){
+               this.issueInformation = false;
+               this.modal = false;
+               this.$Notice.open({title:'发布成功'});
+            }else {
+               this.$Notice.open({title:data.message}); 
+            }
+           
+          })
+        }else {
+          this.$Notice.open({title:'请输入中文或者英文名称'});
+        }
       }
     }
 
@@ -513,5 +559,8 @@
   .testDetails_item_content_r {
     width: 80%;
     margin: auto;
+  }
+  .testDetails_item  {
+    text-align: center;
   }
 </style>
