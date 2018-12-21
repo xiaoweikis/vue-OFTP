@@ -499,8 +499,14 @@ export default {
           }
         }
       },
-      //模式因子数据配置
+      //模式因子ec数据配置
       nwpfactor: [],
+      //模式因子grapes数据配置
+      nwpbabjfactor: [],
+      //模式因子wrf数据配置
+      nwpwrffactor: [],
+       //模式因子bcgz数据配置
+      nwpbcgzfactor: [],
       //观测因子数据配置
       realfactor: [],
       //切换类型使用因子数据
@@ -1232,6 +1238,50 @@ export default {
                   },
                   onOk: function() {
                     self.exportSample('no');
+                  }
+                });
+              } else {
+                self.item1UrlData = data;
+                self.modalShow = true;
+              }
+            }
+          }
+        });
+      } else {
+        Message.warning({
+          content: "请先进行因子抽取",
+          duration: 8,
+          closable: true
+        });
+      }
+    },
+    checkSample() {
+      let url = this.$store.state.firstCache.item1Url;
+      let self = this;
+      if (url) {
+        $.ajax({
+          type: "POST",
+          url: url,
+          beforeSend: function(xhr) {
+            //beforeSend定义全局变量
+            xhr.overrideMimeType("text/plain;charset=gb18030");
+          },
+          success: function(data) {
+            if (data) {
+              if (data.split("\n").length > 1000) {
+                Modal.confirm({
+                  title: "提醒",
+                  okText: "下载",
+                  cancelText: "继续打开",
+                  content: `
+                    <p style="font-size:16px">样本量太大，加载等待时间较长，建议下载到本地查看.</p>
+                  `,
+                  onCancel: function() {
+                    self.item1UrlData = data;
+                    self.modalShow = true;
+                  },
+                  onOk: function() {
+                    self.exportSample();
                   }
                 });
               } else {

@@ -154,7 +154,6 @@ export default {
        })
     },
     logOut(){
-      console.log(1111)
       this.$local.delCookie('usname');
       this.nikename = '';
     }
