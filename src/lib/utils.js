@@ -2,7 +2,7 @@
  * Created by lenovo on 2018/6/24.
  */
 let local = {
-  download (url,fileName){
+  download(url, fileName) {
     var a = document.createElement('a');
     a.style.display = 'none';
     a.setAttribute('href', url);
@@ -32,11 +32,32 @@ let local = {
         document.body.removeChild(eleLink);
       }
     })
-
   },
+  //获取cookie、
+  getCookie(name) {
+    var arr, reg = new RegExp("(^| )" + name + "=([^;]*)(;|$)");
+    if (arr = document.cookie.match(reg))
+      return (arr[2]);
+    else
+      return null;
+  },
+  //设置cookie,增加到vue实例方便全局调用
+  setCookie(c_name, value, expiredays) {
+    var exdate = new Date();
+    exdate.setDate(exdate.getDate() + expiredays);
+    document.cookie = c_name + "=" + escape(value) + ((expiredays == null) ? "" : ";expires=" + exdate.toGMTString());
+  },
+  //清楚cookie
+  delCookie(name) {
+    var exp = new Date();
+    exp.setTime(exp.getTime() - 1);
+    var cval = local.getCookie(name);
+    if (cval != null)
+      document.cookie = name + "=" + cval + ";expires=" + exp.toGMTString();
+  }
 };
 export default {
-  install: function(vm){
+  install: function (vm) {
     vm.prototype.$local = local;
   }
 }

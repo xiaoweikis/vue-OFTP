@@ -3,10 +3,10 @@
     <div class="testDetails">
       <div class="testDetails_item">
         <!--基本信息-->
-        <div v-if="getIsSave" style="float: left;position: fixed">
+        <div v-if="getIsSave" style="position: absolute;right:0">
           <Button type="success" icon="folder" @click.native="saveDetails">保存</Button>
         </div>
-        <div>
+        <div style="padding:20px 0;">
           <span class="spanTitle">基本信息</span>
           <div class="testDetails_item_content" style="position: relative">
             <strong>实验人员&nbsp:</strong><span>&nbsp{{userName}}</span>
@@ -37,10 +37,11 @@
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/> -->
             <strong class="r">预报量&nbsp:</strong><span>&nbsp{{predictionMsg}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
-            <strong class="r"> 起报时间&nbsp:</strong><span>&nbsp{{newspaper}}</span>
+            <strong class="r">预报因子&nbsp:</strong><span>&nbsp{{factorScreen}}</span>
+            <!-- <strong class="r"> 起报时间&nbsp:</strong><span>&nbsp{{newspaper}}</span>
             <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
             <strong class="r">预报时效&nbsp:</strong><span>&nbsp{{timeliness}}</span>
-            <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
+            <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/> -->
             <div v-if="real.length">
               <strong class="r">观测因子&nbsp:</strong><span style="white-space:pre;">&nbsp{{real}}</span>
               <hr style="color: #e9eaec;margin: 3px 0 10px 0;"/>
@@ -78,10 +79,12 @@
           <Input v-if="mark.length" :value="mark" type="textarea" :readonly="true" :rows="1"
                  style="width: 80%;margin: auto"/>
           <Input v-if="getPython.length" :value="getPython" type="textarea" :readonly="true" :rows="20"
-                 style="width: 80%;margin-top: 10px"/>
+                 style="width: 80%;margin: 10px 0"/>
+         
         </div>
       </div>
     </div>
+   
   </div>
 </template>
 <script type="text/ecmascript-6">
@@ -92,7 +95,8 @@
       return {
         radio: 'yes',
         testName: '',
-        isSave: true
+        isSave: true,
+        moadlmsg:false
       }
     },
     components: {
@@ -107,12 +111,20 @@
       if (this.getTestName.length) {
         this.testName = this.getTestName;
       }
+      console.log(this.$store.state.firstCache.caption)
     
     },
     methods: {
       //保存实验详情
       saveDetails(){
         //判断是否输入实验名称
+        if(!this.userName){
+            return Message.warning({
+            content: '请先登录',
+            duration: 8,
+            closable: true
+          })
+        }
         if (this.testName == '') {
           return Message.warning({
             content: '请输入实验名称',
@@ -130,6 +142,7 @@
           name: this.testName,
           dateTime: this.nowTime,
           testUser: this.userName,
+          userName:this.$store.state.firstCache.userName.userName,
           sampleStartYear: this.$store.state.firstCache.ycTimeStart.split('-')[0],
           sampleEndYear: this.$store.state.firstCache.ycTimeEnd.split('-')[0],
           sampleStartMonth: this.$store.state.firstCache.ycTimeStart.split('-')[1],
@@ -145,12 +158,13 @@
           typeNWP: this.$store.state.firstCache.type,
           cols: this.$store.state.firstCache.cols2,
           row: this.$store.state.firstCache.rows2,
-          factorAll: [],
+          factorAll: this.$store.state.firstCache.factorScreen,
           selectFactorAll: [],
           importStation: [],
           factorNWPCaption: this.nwp,
           factorRealCaption: this.real,
           forecastMethodCaption: this.$store.state.firstCache.caption.label.split('_')[0],
+          forecastMethodName:this.$store.state.firstCache.caption.name,
           forecastSchemeName: this.$store.state.firstCache.caption.value,
           forecastSchemeCaption: this.$store.state.firstCache.caption.label,
           trainStartYear: this.$store.state.firstCache.trainTime.trainStartYear.split('-')[0],
@@ -162,7 +176,7 @@
           remark: this.mark.length ? this.encodeUnicode(this.mark) : ''
         };
         
-        $.post('http://101.200.12.178:8090/OFTPService/services/Project/insertProject', {para: JSON.stringify(param)})
+        $.post(this.$host + 'Project/insertProject', {para: JSON.stringify(param)})
           .done(data => {
             if (data) {
               this.isSave = false;
@@ -175,13 +189,14 @@
               this.$router.push('/item5/Catalogue')
               //接口获取预报要素查询
               
-            $.post('http://101.200.12.178:8090/OFTPServiceV2/services/Project/listForecastElement').then((data3)=>{
-              let a = {
-                  forecastElementCaption:'全部'
-                }
-                data3.data.unshift(a)
-              this.$store.commit('listForecastElement',data3)
-            });
+            // $.post('http://101.200.12.178:8090/OFTPServiceV2/services/Project/listForecastElement').then((data3)=>{
+            //   let a = {
+            //       forecastElementCaption:'全部'
+            //     }
+            //     consolelog(data3)
+            //     data3.data.unshift(a)
+            //   this.$store.commit('listForecastElement',data3)
+            // });
             }
           }).fail((a, b, c) => {
           Message.error({
@@ -204,7 +219,8 @@
           return ''
         }
 
-      }
+      },
+     
     },
     computed: {
       //获取保存按钮的状态
@@ -212,7 +228,7 @@
         return this.$store.state.firstCache.isSave;
       },
       userName(){
-        return this.$store.state.firstCache.userName;
+        return this.$store.state.firstCache.userName.showName;
       },
       //获取实验名称
       getTestName(){
@@ -257,7 +273,12 @@
         let station = this.$store.state.firstCache.chooseStation;
         let stationName = '';
         station.forEach(item => {
-          stationName += item.stationName;
+          if(item.stationName){
+            stationName += item.stationName;
+          }else {
+             stationName += item + ',';
+          }
+          
         });
         return stationName
       },
@@ -334,6 +355,10 @@
       getJypg(){
         
         return this.$store.state.firstCache.jypgdata;
+      },
+      //获取预报因子
+      factorScreen(){
+        return this.$store.state.firstCache.factorScreen.join(' , ');
       }
 
     }

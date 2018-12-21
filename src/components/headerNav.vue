@@ -1,8 +1,8 @@
 <template>
   <div id="content">
     <ul id="menu">
-      <li><router-link tag="a" to="/" exact>样本抽取</router-link></li>
-      <li><router-link tag="a" to="/item2">因子分析</router-link></li>
+      <li><router-link tag="a" to="/item1" exact>样本抽取</router-link></li>
+      <li><router-link tag="a" to="/item2">因子筛选</router-link></li>
       <li><router-link tag="a" to="/item3">客观预报</router-link></li>
       <li><router-link tag="a" to="/item4">模型评估</router-link></li>
       <li><router-link tag="a" to="/item5">方案管理</router-link></li>
@@ -27,6 +27,7 @@
     mounted(){
       backGround ();
       menuAnimation2 ();
+    
     }
   }
 </script>

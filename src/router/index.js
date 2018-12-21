@@ -8,22 +8,28 @@ import Item4 from '@/components/item4'
 import Item5 from '@/components/item5'
 import Details from '@/secondLevel/details'
 import Catalogue from '@/secondLevel/testCatalogue'
+import managing from '@/secondLevel/managing'
 
 Vue.use(Router)
 
 export default new Router({
   mode: 'history',
   linkActiveClass:'is-active',//选中导航高亮
+  base: '/OFTP/',
   routes: [
     {
-      path: '/',
+      path: '',
+      redirect: '/item1'
+    },
+    {
+      path: '/item1',
       name: 'item1',
       component: Item1
     },
     {
       path:'/item2',
       name: 'item2',
-      component: Item2
+      component: Item2  
     },
     {
       path:'/item3',
@@ -48,6 +54,11 @@ export default new Router({
           path: '/item5/Catalogue',
           name:'Catalogue',
           component:Catalogue
+        },
+        {
+          path:'/item5/managing',
+          name:'managing',
+          component:managing
         }
       ]
     }
